@@ -13,6 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -20,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,12 +54,15 @@ class AppsViewModel @Inject constructor(private val repo: VaultRepository) : Vie
 }
 
 @Composable
-fun AppsScreen(vm: AppsViewModel = hiltViewModel()) {
+fun AppsScreen(onBack: (() -> Unit)? = null, vm: AppsViewModel = hiltViewModel()) {
     val apps by vm.apps.collectAsStateWithLifecycle()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Space.xl)) {
         item {
             Column(Modifier.padding(start = Space.md, end = Space.md, top = Space.lg, bottom = Space.sm)) {
-                Text("Apps", style = MaterialTheme.typography.displaySmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    onBack?.let { IconButton(onClick = it) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } }
+                    Text("Apps", style = MaterialTheme.typography.displaySmall, modifier = Modifier.semantics { heading() })
+                }
                 Text("Choose which apps are recorded. Apps appear here after their first notification. Turn off banking or one-time-code apps if you'd rather not store them.",
                     style = MaterialTheme.typography.bodyMedium, color = Vault.colors.textSecondary)
             }

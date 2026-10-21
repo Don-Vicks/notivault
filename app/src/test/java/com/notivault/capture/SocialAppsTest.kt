@@ -3,6 +3,7 @@ package com.notivault.capture
 import com.notivault.capture.apps.AppProfiles
 import com.notivault.capture.apps.DeletionSignal
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -102,5 +103,30 @@ class HistoryDiffTest {
         val prev = listOf(m("A", "1", 1), m("B", "gone", 2), m("A", "3", 3))
         val next = listOf(m("A", "1", 101), m("A", "3", 103))
         assertEquals(listOf("gone"), HistoryDiff.removed(prev, next).map { it.text })
+    }
+}
+
+class RemovalHeuristicTest {
+    private fun r(key: String, at: Long, reason: Int = RemovalHeuristic.REASON_APP_CANCEL, post: Long = at - 60_000) =
+        RemovalHeuristic.Removal("org.telegram.messenger", key, at, reason, post)
+
+    @Test fun `lone app-cancelled single message is possibly unsent`() {
+        val t = r("a", 1_000_000)
+        assertTrue(RemovalHeuristic.isLikelyUnsend(t, listOf(t), lastPayloadSize = 1, appDeletesByRemoval = true))
+    }
+
+    @Test fun `bulk clear means read, not unsent`() {
+        val t = r("a", 1_000_000)
+        assertFalse(RemovalHeuristic.isLikelyUnsend(t, listOf(t, r("b", 1_000_800)), 1, true))
+    }
+
+    @Test fun `user swipe, multi-message payloads, old posts and placeholder-only apps are ignored`() {
+        val swipe = r("a", 1_000_000, reason = 2)
+        assertFalse(RemovalHeuristic.isLikelyUnsend(swipe, listOf(swipe), 1, true))
+        val t = r("a", 1_000_000)
+        assertFalse(RemovalHeuristic.isLikelyUnsend(t, listOf(t), 3, true))
+        assertFalse(RemovalHeuristic.isLikelyUnsend(t, listOf(t), 1, false))
+        val old = r("a", 10_000_000, post = 0)
+        assertFalse(RemovalHeuristic.isLikelyUnsend(old, listOf(old), 1, true))
     }
 }

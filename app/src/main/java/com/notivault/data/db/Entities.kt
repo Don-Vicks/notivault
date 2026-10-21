@@ -58,6 +58,26 @@ data class MessageEntity(
     val deletedDetectedAt: Long? = null,
     val attachmentPath: String? = null,
     @ColumnInfo(defaultValue = "Text") val kind: String = "Text",
+    /** Weaker signal than [deletedBySender]: the app withdrew the notification on its own (see RemovalHeuristic). */
+    val possiblyUnsentAt: Long? = null,
+)
+
+/** A media file copied (encrypted) from a chat app's media folder the user granted via SAF. */
+@Entity(tableName = "media", indices = [Index(value = ["sourceUri"], unique = true), Index("capturedAt")])
+data class MediaEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sourceUri: String,
+    val treeUri: String,
+    val displayName: String,
+    val folder: String,
+    val mime: String?,
+    val size: Long,
+    val sourceModified: Long,
+    val capturedAt: Long,
+    /** Encrypted copy; null when the file was too large to keep (metadata-only record). */
+    val vaultPath: String?,
+    /** Set when the original disappeared from the app's folder, e.g. "delete for everyone". */
+    val removedFromSourceAt: Long? = null,
 )
 
 @Fts4(contentEntity = MessageEntity::class)
@@ -81,6 +101,7 @@ data class MessageRow(
     val deletedDetectedAt: Long?,
     val attachmentPath: String?,
     val kind: String,
+    val possiblyUnsentAt: Long?,
     @ColumnInfo(name = "conversationTitle") val conversationTitle: String,
     @ColumnInfo(name = "isGroup") val isGroup: Boolean,
     @ColumnInfo(name = "appLabel") val appLabel: String,
@@ -109,3 +130,5 @@ data class AppRow(
 )
 
 data class VaultStats(val total: Int, val deleted: Int, val conversations: Int, val apps: Int)
+
+data class MediaStats(val total: Int, val removed: Int)

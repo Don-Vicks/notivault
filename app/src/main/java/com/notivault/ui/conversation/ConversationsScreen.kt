@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,8 +69,8 @@ fun ConversationsScreen(onOpen: (Long) -> Unit, vm: ConversationsViewModel = hil
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Space.xl)) {
         item {
-            Text("Chats", style = MaterialTheme.typography.displaySmall,
-                modifier = Modifier.padding(start = Space.md, top = Space.lg, bottom = Space.sm))
+            Text("Chats", style = MaterialTheme.typography.displaySmall, 
+                modifier = Modifier.semantics { heading() }.padding(start = Space.md, top = Space.lg, bottom = Space.sm))
             FilterChipRow(
                 listOf(ChipOption(null, "All apps")) + apps.filter { it.messageCount > 0 }.map { ChipOption(it.packageName, it.label) },
                 pkg, { vm.pkg.value = it }, Modifier.padding(bottom = Space.xs),

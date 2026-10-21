@@ -71,7 +71,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -190,6 +193,29 @@ fun KindHint(kind: String, hasPreview: Boolean) {
     }
 }
 
+/** Weaker than [RecoveredBadge]: the app withdrew the notification and it might have been unsent. */
+@Composable
+fun PossiblyUnsentBadge(modifier: Modifier = Modifier) {
+    Text(
+        "Possibly unsent",
+        style = MaterialTheme.typography.labelSmall,
+        color = Vault.colors.recovered,
+        modifier = modifier
+            .semantics { contentDescription = "Possibly unsent by the sender" }
+            .border(1.dp, Vault.colors.recovered.copy(alpha = 0.6f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
+
+/** One spoken sentence per card for TalkBack instead of reading each fragment. */
+fun spokenSummary(row: MessageRow): String = buildString {
+    if (row.deletedBySender) append("Recovered deleted message. ") else if (row.possiblyUnsentAt != null) append("Possibly unsent message. ")
+    append("From ").append(row.sender)
+    if (row.sender != row.conversationTitle) append(" in ").append(row.conversationTitle)
+    append(", on ").append(row.appLabel).append(", ").append(Format.relative(row.msgTimestamp)).append(". ")
+    append(row.text)
+}
+
 // ---------------------------------------------------------------- message card
 
 @Composable
@@ -197,7 +223,8 @@ fun MessageCard(row: MessageRow, onClick: () -> Unit, modifier: Modifier = Modif
     val recovered = row.deletedBySender
     Surface(
         onClick = onClick,
-        modifier = modifier.vaultSharedBounds("msg-${row.id}", MaterialTheme.shapes.medium).fillMaxWidth(),
+        modifier = modifier.vaultSharedBounds("msg-${row.id}", MaterialTheme.shapes.medium).fillMaxWidth()
+            .clearAndSetSemantics { contentDescription = spokenSummary(row); role = Role.Button },
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = if (recovered) androidx.compose.foundation.BorderStroke(1.dp, Vault.colors.recovered.copy(alpha = 0.45f)) else null,
@@ -214,6 +241,7 @@ fun MessageCard(row: MessageRow, onClick: () -> Unit, modifier: Modifier = Modif
                         modifier = Modifier.weight(1f, fill = false),
                     )
                     if (recovered) { Spacer(Modifier.width(Space.xs)); RecoveredBadge(compact = true) }
+                    else if (row.possiblyUnsentAt != null) { Spacer(Modifier.width(Space.xs)); PossiblyUnsentBadge() }
                     Spacer(Modifier.weight(1f))
                     Text(Format.relative(row.msgTimestamp), style = MaterialTheme.typography.labelSmall, color = Vault.colors.textSecondary)
                 }
@@ -271,10 +299,12 @@ fun ChatBubble(row: MessageRow, showSender: Boolean, onClick: () -> Unit, modifi
             shape = shape,
             color = if (recovered) Vault.colors.recoveredContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
             border = if (recovered) androidx.compose.foundation.BorderStroke(1.dp, Vault.colors.recovered.copy(alpha = 0.6f)) else null,
-            modifier = Modifier.vaultSharedBounds("msg-${row.id}", shape).widthIn(max = 320.dp),
+            modifier = Modifier.vaultSharedBounds("msg-${row.id}", shape).widthIn(max = 320.dp)
+                .clearAndSetSemantics { contentDescription = spokenSummary(row); role = Role.Button },
         ) {
             Column(Modifier.padding(horizontal = Space.sm, vertical = Space.xs)) {
                 if (recovered) { RecoveredBadge(pulse = false); Spacer(Modifier.height(Space.xxs)) }
+                else if (row.possiblyUnsentAt != null) { PossiblyUnsentBadge(); Spacer(Modifier.height(Space.xxs)) }
                 Text(row.text, style = MaterialTheme.typography.bodyLarge,
                     color = if (recovered) Vault.colors.onRecoveredContainer else MaterialTheme.colorScheme.onSurface)
                 Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
@@ -365,7 +395,8 @@ fun EmptyState(icon: ImageVector, title: String, body: String, modifier: Modifie
             contentAlignment = Alignment.Center,
         ) { Icon(icon, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary) }
         Spacer(Modifier.height(Space.lg))
-        Text(title, style = MaterialTheme.typography.titleMedium)
+        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(Space.xs))
         Text(body, style = MaterialTheme.typography.bodyMedium, color = Vault.colors.textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -428,7 +459,7 @@ fun PermissionCard(icon: ImageVector, title: String, body: String, granted: Bool
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(start = Space.md, end = Space.md, top = Space.lg, bottom = Space.xs))
+        modifier = modifier.semantics { heading() }.padding(start = Space.md, end = Space.md, top = Space.lg, bottom = Space.xs))
 }
 
 @Composable
@@ -473,7 +504,8 @@ fun SettingSwitchRow(icon: ImageVector, title: String, subtitle: String? = null,
 
 @Composable
 fun StatTile(value: String, label: String, modifier: Modifier = Modifier, accent: Color = MaterialTheme.colorScheme.primary) {
-    Surface(modifier, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainer) {
+    Surface(modifier.clearAndSetSemantics { contentDescription = "$value $label" }, shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainer) {
         Column(Modifier.padding(Space.md)) {
             AnimatedContent(
                 targetState = value,

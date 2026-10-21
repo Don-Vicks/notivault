@@ -28,6 +28,10 @@ sender later deletes ("delete for everyone") stay on your phone, marked **Recove
   Keystore key. **No INTERNET permission.**
 
 ## Features
+**New:** media vault (keeps chat photos, videos and voice notes after "delete for everyone"), "possibly
+unsent" detection, chat transcript export, Quick Settings pause tile, capture help. See
+[docs/ROADMAP.md](docs/ROADMAP.md) for the research behind them and what's next.
+
 Timeline with app/recovered/date filters · per-chat bubble view · full-text search (FTS4) with highlights ·
 paper-style receipts exportable as PNG/PDF with SHA-256 · per-app capture toggles · PIN + biometric lock with
 auto-lock · retention policy (daily WorkManager job) · password-encrypted `.nvault` backup/restore ·
@@ -56,9 +60,27 @@ and media is a preview only. Android only; iOS does not allow reading other apps
 - Apps screen: per-app switches, grouped into Messaging & social and Other, with each app's deletion-detection
   method shown.
 
+## Media vault
+In the Media tab, pick WhatsApp's (or Telegram's) media folder. Android opens it directly; tap **Use this
+folder**. NotiVault gets read-only access to that folder only. New files are copied into the vault,
+encrypted with the Keystore key, every 15 minutes and shortly after a media message arrives. When the chat
+app removes a file (delete for everyone), the vault keeps its copy and marks it **Deleted by sender**.
+Files over 40 MB are recorded as metadata only.
+
+## Privacy & Play
+See [PRIVACY.md](PRIVACY.md). The app shows a prominent disclosure before notification access, uses
+narrow package visibility (no `QUERY_ALL_PACKAGES`), and has no INTERNET permission.
+
+## Releases & signing
+Copy `keystore.properties.example` to `keystore.properties` (git-ignored) to sign locally. CI signs
+`v*` tags with repository secrets `NOTIVAULT_KEYSTORE_BASE64`, `NOTIVAULT_KEYSTORE_PASSWORD`,
+`NOTIVAULT_KEY_ALIAS` and `NOTIVAULT_KEY_PASSWORD`, then publishes the APK and AAB to GitHub Releases.
+
 ## Build & test
 ```
-./gradlew testDebugUnitTest      # parser, dedup, deletion, crypto, contrast
+./gradlew testDebugUnitTest      # parser, dedup, deletion, removal heuristic, media rules, crypto, contrast
+./gradlew verifyPaparazziDebug   # screenshot tests (light, dark, 1.6× font)
+./gradlew connectedDebugAndroidTest  # migrations v1→v3, encryption at rest, Keystore (needs a device)
 ./gradlew installDebug
 adb shell cmd notification allow_listener com.notivault/com.notivault.capture.NotiListenerService
 adb shell "cmd notification post -S messaging --conversation 'Squad' --message 'Ada:hi' sq x"

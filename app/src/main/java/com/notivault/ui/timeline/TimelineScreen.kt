@@ -22,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -88,7 +90,7 @@ fun TimelineScreen(
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Space.xl)) {
         item {
             Column(Modifier.padding(start = Space.md, end = Space.md, top = Space.lg, bottom = Space.sm)) {
-                Text("Vault", style = MaterialTheme.typography.displaySmall)
+                Text("Vault", style = MaterialTheme.typography.displaySmall, modifier = Modifier.semantics { heading() })
                 Text("Every notification, on the record.", style = MaterialTheme.typography.bodyMedium, color = Vault.colors.textSecondary)
                 Spacer(Modifier.height(Space.md))
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {

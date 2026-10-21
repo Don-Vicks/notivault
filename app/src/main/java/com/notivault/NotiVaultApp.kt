@@ -6,6 +6,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import com.notivault.capture.RecoveredNotifier
 import com.notivault.security.LockManager
+import com.notivault.work.MediaScanWorker
 import com.notivault.work.RetentionWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -24,5 +25,6 @@ class NotiVaultApp : Application(), Configuration.Provider {
         RecoveredNotifier.createChannels(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(lockManager)
         RetentionWorker.schedule(this)
+        MediaScanWorker.schedulePeriodic(this)
     }
 }

@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
-import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings as SettingsIcon
@@ -53,6 +53,8 @@ import androidx.navigation.navArgument
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.notivault.data.prefs.Settings as VaultSettings
 import com.notivault.ui.apps.AppsScreen
+import com.notivault.ui.media.MediaScreen
+import com.notivault.ui.media.MediaViewerScreen
 import com.notivault.ui.conversation.ConversationScreen
 import com.notivault.ui.conversation.ConversationsScreen
 import com.notivault.ui.detail.MessageScreen
@@ -75,8 +77,8 @@ import javax.inject.Inject
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     Timeline("timeline", "Vault", Icons.Outlined.Inbox),
     Chats("chats", "Chats", Icons.AutoMirrored.Outlined.Chat),
+    Media("media", "Media", Icons.Outlined.PhotoLibrary),
     Search("search", "Search", Icons.Outlined.Search),
-    Apps("apps", "Apps", Icons.Outlined.Apps),
     Settings("settings", "Settings", Icons.Outlined.SettingsIcon),
 }
 
@@ -146,8 +148,12 @@ private fun MainShell(vm: MainViewModel, settings: VaultSettings) {
             }
             screen(Tab.Chats.route) { TabPage { ConversationsScreen(onOpen = { nav.navigate("conversation/$it") }) } }
             screen(Tab.Search.route) { TabPage { SearchScreen(onOpenMessage = { nav.navigate("message/$it") }) } }
-            screen(Tab.Apps.route) { TabPage { AppsScreen() } }
-            screen(Tab.Settings.route) { TabPage { SettingsScreen(listenerOn, onSetPin = { nav.navigate("setpin") }) } }
+            screen(Tab.Media.route) { TabPage { MediaScreen(onOpen = { nav.navigate("media/$it") }) } }
+            screen("apps") { TabPage { AppsScreen(onBack = { nav.popBackStack() }) } }
+            screen("media/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
+                MediaViewerScreen(onBack = { nav.popBackStack() })
+            }
+            screen(Tab.Settings.route) { TabPage { SettingsScreen(listenerOn, onSetPin = { nav.navigate("setpin") }, onOpenApps = { nav.navigate("apps") }) } }
             screen("conversation/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
                 ConversationScreen(onBack = { nav.popBackStack() }, onOpenMessage = { nav.navigate("message/$it") })
             }

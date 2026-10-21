@@ -14,6 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,8 +50,7 @@ fun SearchScreen(onOpenMessage: (Long) -> Unit, vm: SearchViewModel = hiltViewMo
     val results by vm.results.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {
-        Text("Search", style = MaterialTheme.typography.displaySmall,
-            modifier = Modifier.padding(start = Space.md, top = Space.lg, bottom = Space.sm))
+        Text("Search", style = MaterialTheme.typography.displaySmall, modifier = Modifier.semantics { heading() }.padding(start = Space.md, top = Space.lg, bottom = Space.sm))
         SearchField(q, { vm.query.value = it }, Modifier.padding(horizontal = Space.md))
         when {
             q.isBlank() -> EmptyState(Icons.Outlined.ManageSearch, "Find anything",

@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteForever
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.PauseCircle
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Sensors
@@ -46,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -58,6 +63,7 @@ import com.notivault.BuildConfigInfo
 import com.notivault.data.prefs.Settings
 import com.notivault.data.prefs.SettingsStore
 import com.notivault.data.prefs.ThemeMode
+import com.notivault.data.media.MediaVault
 import com.notivault.data.repo.BackupManager
 import com.notivault.data.repo.VaultRepository
 import com.notivault.ui.components.SectionHeader
@@ -80,6 +86,7 @@ class SettingsViewModel @Inject constructor(
     private val store: SettingsStore,
     private val repo: VaultRepository,
     private val backup: BackupManager,
+    private val media: MediaVault,
 ) : ViewModel() {
     val settings = store.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Settings())
 
@@ -87,14 +94,18 @@ class SettingsViewModel @Inject constructor(
     fun dynamic(on: Boolean) = viewModelScope.launch { store.setDynamicColor(on) }
     fun biometric(on: Boolean) = viewModelScope.launch { store.setBiometric(on) }
     fun alerts(on: Boolean) = viewModelScope.launch { store.setRecoveredAlerts(on) }
+    fun paused(on: Boolean) = viewModelScope.launch { store.setCapturePaused(on) }
     fun messagingOnly(on: Boolean) = viewModelScope.launch { store.setMessagingOnly(on) }
     fun autoLock(m: Int) = viewModelScope.launch { store.setAutoLockMinutes(m) }
     fun disableLock() = viewModelScope.launch { store.disableLock() }
     fun retention(days: Int) = viewModelScope.launch {
         store.setRetentionDays(days)
-        if (days > 0) repo.purgeOlderThan(System.currentTimeMillis() - days * 86_400_000L)
+        if (days > 0) {
+            val cutoff = System.currentTimeMillis() - days * 86_400_000L
+            repo.purgeOlderThan(cutoff); media.purgeOlderThan(cutoff)
+        }
     }
-    fun wipe(ctx: Context) = viewModelScope.launch { repo.wipeAll(); toast(ctx, "Vault erased") }
+    fun wipe(ctx: Context) = viewModelScope.launch { repo.wipeAll(); media.wipe(); toast(ctx, "Vault erased") }
 
     fun export(ctx: Context, uri: Uri, pw: String) = viewModelScope.launch {
         runCatching { backup.export(uri, pw.toCharArray()) }
@@ -114,13 +125,14 @@ class SettingsViewModel @Inject constructor(
 private enum class PwMode { Export, Import }
 
 @Composable
-fun SettingsScreen(listenerOn: Boolean, onSetPin: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(listenerOn: Boolean, onSetPin: () -> Unit, onOpenApps: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
     val s by vm.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var pwFor by remember { mutableStateOf<Pair<PwMode, Uri>?>(null) }
     var retentionOpen by remember { mutableStateOf(false) }
     var autoLockOpen by remember { mutableStateOf(false) }
     var wipeOpen by remember { mutableStateOf(false) }
+    var helpOpen by remember { mutableStateOf(false) }
 
     val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
@@ -131,8 +143,7 @@ fun SettingsScreen(listenerOn: Boolean, onSetPin: () -> Unit, vm: SettingsViewMo
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = Space.xl)) {
-        Text("Settings", style = MaterialTheme.typography.displaySmall,
-            modifier = Modifier.padding(start = Space.md, top = Space.lg))
+        Text("Settings", style = MaterialTheme.typography.displaySmall, modifier = Modifier.semantics { heading() }.padding(start = Space.md, top = Space.lg))
 
         SectionHeader("Capture")
         SettingRow(Icons.Outlined.Sensors, if (listenerOn) "Listening" else "Paused",
@@ -144,6 +155,10 @@ fun SettingsScreen(listenerOn: Boolean, onSetPin: () -> Unit, vm: SettingsViewMo
             })
         SettingSwitchRow(Icons.Outlined.NotificationsActive, "Recovery alerts",
             "Notify me when a sender deletes a message I have saved", s.recoveredAlerts, vm::alerts)
+        SettingSwitchRow(Icons.Outlined.PauseCircle, "Pause recording",
+            "Also available as a Quick Settings tile", s.capturePaused, vm::paused)
+        SettingRow(Icons.Outlined.Apps, "Apps", "Choose which apps are recorded", onClick = onOpenApps)
+        SettingRow(Icons.AutoMirrored.Outlined.HelpOutline, "Why are some messages missing?", onClick = { helpOpen = true })
         SettingSwitchRow(Icons.Outlined.Forum, "Messaging & social apps only",
             "Skip shopping, news and system notifications. WhatsApp, Telegram, Instagram, Signal and 20+ more stay on.",
             s.messagingOnly, vm::messagingOnly)
@@ -210,6 +225,27 @@ fun SettingsScreen(listenerOn: Boolean, onSetPin: () -> Unit, vm: SettingsViewMo
         onDismiss = { retentionOpen = false }) { vm.retention(it); retentionOpen = false }
     if (autoLockOpen) ChoiceDialog("Auto-lock", listOf(0, 1, 5, 15), s.autoLockMinutes, ::autoLockLabel,
         onDismiss = { autoLockOpen = false }) { vm.autoLock(it); autoLockOpen = false }
+    if (helpOpen) AlertDialog(
+        onDismissRequest = { helpOpen = false },
+        title = { Text("What NotiVault can see") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                listOf(
+                    "Muted chats" to "Muted chats don't post notifications, so there's nothing to save. Unmute chats you want recorded, or set them to silent instead of muted.",
+                    "Hidden previews" to "If WhatsApp or Telegram is set to hide message content in notifications, only \"New message\" arrives. Turn previews on in that app's notification settings.",
+                    "Chat open on screen" to "Apps don't notify for the chat you're looking at, so those messages aren't captured.",
+                    "Photos & voice notes" to "Notifications only include a preview. Add the app's media folder in the Media tab and keep auto-download on to keep the real files.",
+                    "Before install" to "Messages that arrived before NotiVault had notification access can't be recovered.",
+                    "Battery savers" to "Some phones stop background apps. If the Listening dot turns red, allow NotiVault to run in the background.",
+                ).forEach { (t, b) ->
+                    Text(t, style = MaterialTheme.typography.titleSmall)
+                    Text(b, style = MaterialTheme.typography.bodyMedium, color = Vault.colors.textSecondary,
+                        modifier = Modifier.padding(bottom = Space.sm))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { helpOpen = false }) { Text("Got it") } },
+    )
     if (wipeOpen) AlertDialog(
         onDismissRequest = { wipeOpen = false },
         title = { Text("Erase everything?") },

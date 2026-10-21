@@ -19,6 +19,8 @@ data class RawNotification(
     val isOngoing: Boolean,
     val isGroupSummary: Boolean,
     val category: String?,
+    /** ApplicationInfo the framework attaches to every notification (label fallback without package visibility). */
+    val appInfo: android.content.pm.ApplicationInfo? = null,
 )
 
 data class RawMessage(

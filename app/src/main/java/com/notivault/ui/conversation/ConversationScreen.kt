@@ -41,13 +41,29 @@ import com.notivault.ui.components.Format
 import com.notivault.ui.theme.Space
 import com.notivault.ui.theme.Vault
 import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.compose.material.icons.outlined.IosShare
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
-class ConversationViewModel @Inject constructor(handle: SavedStateHandle, repo: VaultRepository) : ViewModel() {
+class ConversationViewModel @Inject constructor(handle: SavedStateHandle, private val repo: VaultRepository) : ViewModel() {
     private val id: Long = checkNotNull(handle["id"])
+
+    fun export(context: android.content.Context) = viewModelScope.launch {
+        val (title, text) = repo.transcript(id) ?: return@launch
+        val file = withContext(Dispatchers.IO) {
+            java.io.File(context.cacheDir, "exports").apply { mkdirs() }
+                .let { java.io.File(it, title.replace(Regex("[^A-Za-z0-9 _-]"), "_") + ".txt") }.apply { writeText(text) }
+        }
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        context.startActivity(android.content.Intent.createChooser(
+            android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION), "Export chat"))
+    }
     val header = repo.conversationHeader(id).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val items = repo.conversationMessages(id).cachedIn(viewModelScope)
 }
@@ -74,6 +90,10 @@ fun ConversationScreen(onBack: () -> Unit, onOpenMessage: (Long) -> Unit, vm: Co
                             }
                         }
                     }
+                },
+                actions = {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    IconButton(onClick = { vm.export(context) }) { Icon(androidx.compose.material.icons.Icons.Outlined.IosShare, "Export chat as text") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             )

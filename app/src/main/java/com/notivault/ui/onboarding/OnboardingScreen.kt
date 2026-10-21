@@ -188,6 +188,29 @@ private fun PermissionStep(onNext: () -> Unit) {
     }
     val battery = remember(tick) { isIgnoringBattery(context) }
     val postLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
+    var disclosure by remember { mutableStateOf(false) }
+
+    // Google Play prominent disclosure: shown in-app, before the system permission screen.
+    if (disclosure) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { disclosure = false },
+        title = { Text("NotiVault will read your notifications") },
+        text = {
+            Text(
+                "To keep a record of messages sent to you, NotiVault reads the content of notifications from the apps " +
+                    "you choose, including sender names, message text and image previews. This data is stored encrypted on " +
+                    "this phone only. NotiVault has no internet access and never shares, uploads or sells it. You can " +
+                    "exclude apps, pause recording or erase everything at any time.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                disclosure = false
+                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }) { Text("I agree, continue") }
+        },
+        dismissButton = { TextButton(onClick = { disclosure = false }) { Text("Not now") } },
+    )
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Space.lg)) {
         Text("Turn on capture", style = MaterialTheme.typography.displaySmall)
@@ -197,7 +220,7 @@ private fun PermissionStep(onNext: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
             PermissionCard(Icons.Outlined.Notifications, "Notification access",
                 "Lets NotiVault read incoming notifications. Required.", listener, "Allow") {
-                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                disclosure = true
             }
             PermissionCard(Icons.Outlined.NotificationsActive, "Recovery alerts",
                 "Tells you when a message was deleted and your copy was kept.", postGranted, "Allow") {

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.notivault.data.crypto.PasswordCrypto
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,10 @@ data class Settings(
     val lastHeartbeat: Long = 0,
     /** Only record apps with a messaging/social profile (WhatsApp, Telegram, Instagram…). */
     val messagingOnly: Boolean = false,
+    /** SAF tree URIs of chat-app media folders the user granted to the media vault. */
+    val mediaTrees: Set<String> = emptySet(),
+    /** Temporarily stop recording (Quick Settings tile / Settings). */
+    val capturePaused: Boolean = false,
 )
 
 class SettingsStore(private val context: Context) {
@@ -48,6 +53,8 @@ class SettingsStore(private val context: Context) {
         val heartbeat = longPreferencesKey("last_heartbeat")
         val messagingOnly = booleanPreferencesKey("messaging_only")
         val pinHash = stringPreferencesKey("pin_hash")
+        val mediaTrees = stringSetPreferencesKey("media_trees")
+        val paused = booleanPreferencesKey("capture_paused")
         val pinSalt = stringPreferencesKey("pin_salt")
     }
 
@@ -67,6 +74,8 @@ class SettingsStore(private val context: Context) {
         listenerConnected = this[K.connected] ?: false,
         lastHeartbeat = this[K.heartbeat] ?: 0,
         messagingOnly = this[K.messagingOnly] ?: false,
+        mediaTrees = this[K.mediaTrees] ?: emptySet(),
+        capturePaused = this[K.paused] ?: false,
     )
 
     suspend fun setOnboardingDone() = context.dataStore.edit { it[K.onboarding] = true }
@@ -75,6 +84,9 @@ class SettingsStore(private val context: Context) {
     suspend fun setAutoLockMinutes(m: Int) = context.dataStore.edit { it[K.autoLock] = m }
     suspend fun setDynamicColor(enabled: Boolean) = context.dataStore.edit { it[K.dynamic] = enabled }
     suspend fun setRecoveredAlerts(enabled: Boolean) = context.dataStore.edit { it[K.alerts] = enabled }
+    suspend fun setCapturePaused(paused: Boolean) = context.dataStore.edit { it[K.paused] = paused }
+    suspend fun addMediaTree(uri: String) = context.dataStore.edit { it[K.mediaTrees] = (it[K.mediaTrees] ?: emptySet()) + uri }
+    suspend fun removeMediaTree(uri: String) = context.dataStore.edit { it[K.mediaTrees] = (it[K.mediaTrees] ?: emptySet()) - uri }
     suspend fun setMessagingOnly(on: Boolean) = context.dataStore.edit { it[K.messagingOnly] = on }
     suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit { it[K.theme] = mode.name }
 

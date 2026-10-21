@@ -8,6 +8,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.notivault.capture.NotiListenerService
+import com.notivault.data.media.MediaVault
 import com.notivault.data.prefs.SettingsStore
 import com.notivault.data.repo.VaultRepository
 import dagger.assisted.Assisted
@@ -21,11 +22,16 @@ class RetentionWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val repo: VaultRepository,
     private val settings: SettingsStore,
+    private val media: MediaVault,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val days = settings.current().retentionDays
-        if (days > 0) repo.purgeOlderThan(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong()))
+        if (days > 0) {
+            val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong())
+            repo.purgeOlderThan(cutoff)
+            media.purgeOlderThan(cutoff)
+        }
         if (!settings.current().listenerConnected) NotiListenerService.rebind(applicationContext)
         return Result.success()
     }

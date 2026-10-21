@@ -132,6 +132,33 @@ class VaultRepository(
         return IngestResult(inserted, recoveredIds.mapNotNull { dao.messageOnce(it) })
     }
 
+    /** Plain-text transcript of a conversation, oldest first, with deletion annotations. */
+    suspend fun transcript(conversationId: Long): Pair<String, String>? {
+        val header = dao.conversationHeaderOnce(conversationId) ?: return null
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+        val body = buildString {
+            appendLine("${header.title} · ${header.appLabel}")
+            appendLine("Exported from NotiVault on ${fmt.format(java.util.Date())}. Captured from notifications.")
+            appendLine()
+            dao.messagesFor(conversationId).forEach { m ->
+                append("[").append(fmt.format(java.util.Date(m.msgTimestamp))).append("] ").append(m.sender).append(": ").append(m.text)
+                when {
+                    m.deletedBySender -> append("  [deleted by sender, recovered]")
+                    m.possiblyUnsentAt != null -> append("  [possibly unsent]")
+                }
+                appendLine()
+            }
+        }
+        return header.title to body
+    }
+
+    suspend fun markPossiblyUnsent(m: ParsedMessage) {
+        val conv = dao.conversation(m.packageName, m.conversationKey) ?: return
+        val w = DedupEngine.HISTORY_WINDOW_MS
+        dao.findSimilar(conv.id, m.sender, m.text, m.msgTimestamp, m.msgTimestamp - w, m.msgTimestamp + w)
+            ?.let { dao.markPossiblyUnsent(it.id, System.currentTimeMillis()) }
+    }
+
     private suspend fun attachThumbnail(m: ParsedMessage, bytes: ByteArray) {
         val file = File(context.filesDir, "attachments/${m.hash}.bin")
         keys.writeEncrypted(file, bytes)

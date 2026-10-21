@@ -1,9 +1,12 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    id("app.cash.paparazzi")
 }
 
 android {
@@ -19,8 +22,27 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing comes from keystore.properties (local, git-ignored) or NOTIVAULT_* env vars (CI).
+    // Without either, release builds are produced unsigned.
+    val signingProps = Properties().apply {
+        rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
+    }
+    fun secret(key: String, env: String): String? = signingProps.getProperty(key) ?: System.getenv(env)
+    val storePath = secret("storeFile", "NOTIVAULT_KEYSTORE_PATH")
+    signingConfigs {
+        if (storePath != null) {
+            create("release") {
+                storeFile = rootProject.file(storePath)
+                storePassword = secret("storePassword", "NOTIVAULT_KEYSTORE_PASSWORD")
+                keyAlias = secret("keyAlias", "NOTIVAULT_KEY_ALIAS")
+                keyPassword = secret("keyPassword", "NOTIVAULT_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -33,6 +55,8 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     testOptions { unitTests.isReturnDefaultValues = true }
+    // Exported Room schemas feed MigrationTestHelper.
+    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
 }
 
 ksp {
@@ -78,4 +102,8 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.room:room-testing:2.7.2")
 }

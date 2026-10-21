@@ -67,6 +67,12 @@ interface VaultDao {
     @Query("SELECT c.*, a.label AS appLabel FROM conversations c JOIN apps a ON a.packageName = c.packageName WHERE c.id = :id")
     fun conversationHeader(id: Long): Flow<ConversationHeader?>
 
+    @Query("SELECT c.*, a.label AS appLabel FROM conversations c JOIN apps a ON a.packageName = c.packageName WHERE c.id = :id")
+    suspend fun conversationHeaderOnce(id: Long): ConversationHeader?
+
+    @Query("SELECT * FROM messages WHERE conversationId = :id ORDER BY msgTimestamp")
+    suspend fun messagesFor(id: Long): List<MessageEntity>
+
     @Query("SELECT * FROM conversations")
     suspend fun allConversations(): List<ConversationEntity>
 
@@ -103,6 +109,9 @@ interface VaultDao {
     @Query("SELECT COUNT(*) FROM messages WHERE conversationId = :conversationId AND sender = :sender AND deletedBySender = 1 AND msgTimestamp >= :from")
     suspend fun countDeleted(conversationId: Long, sender: String, from: Long): Int
 
+    @Query("UPDATE messages SET possiblyUnsentAt = :at WHERE id = :id AND deletedBySender = 0 AND possiblyUnsentAt IS NULL")
+    suspend fun markPossiblyUnsent(id: Long, at: Long): Int
+
     @Query("UPDATE messages SET attachmentPath = :path WHERE hash = :hash")
     suspend fun setAttachment(hash: String, path: String)
 
@@ -110,7 +119,7 @@ interface VaultDao {
     suspend fun markDeleted(id: Long, at: Long)
 
     @Query(
-        "$ROW_SELECT WHERE (:pkg IS NULL OR m.packageName = :pkg) AND (:deletedOnly = 0 OR m.deletedBySender = 1) " +
+        "$ROW_SELECT WHERE (:pkg IS NULL OR m.packageName = :pkg) AND (:deletedOnly = 0 OR m.deletedBySender = 1 OR m.possiblyUnsentAt IS NOT NULL) " +
             "AND m.msgTimestamp BETWEEN :from AND :to ORDER BY m.msgTimestamp DESC",
     )
     fun timeline(pkg: String?, deletedOnly: Boolean, from: Long, to: Long): PagingSource<Int, MessageRow>

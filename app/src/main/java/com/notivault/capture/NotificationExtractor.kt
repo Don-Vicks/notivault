@@ -43,6 +43,9 @@ object NotificationExtractor {
                 n.flags and Notification.FLAG_FOREGROUND_SERVICE != 0,
             isGroupSummary = n.flags and Notification.FLAG_GROUP_SUMMARY != 0,
             category = n.category,
+            appInfo = runCatching {
+                @Suppress("DEPRECATION") extras.getParcelable<android.content.pm.ApplicationInfo>("android.appInfo")
+            }.getOrNull(),
         )
     }
 
@@ -64,7 +67,16 @@ object NotificationExtractor {
             ?: if (Build.VERSION.SDK_INT >= 31) {
                 (extras.get(Notification.EXTRA_PICTURE_ICON) as? Icon)?.loadDrawable(context)?.toBitmap()
             } else null
-        return bmp?.let { compress(it) }
+        return bmp?.let { compress(it) } ?: messagingImage(context, sbn)
+    }
+
+    /** Some apps attach the image itself to a MessagingStyle message; readable only if they granted access. */
+    private fun messagingImage(context: Context, sbn: StatusBarNotification): ByteArray? {
+        val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(sbn.notification) ?: return null
+        val msg = style.messages.lastOrNull { it.dataUri != null && it.dataMimeType?.startsWith("image/") == true } ?: return null
+        return runCatching {
+            context.contentResolver.openInputStream(msg.dataUri!!)?.use { android.graphics.BitmapFactory.decodeStream(it) }?.let { compress(it) }
+        }.getOrNull()
     }
 
     private fun compress(src: Bitmap, maxSide: Int = 720): ByteArray {

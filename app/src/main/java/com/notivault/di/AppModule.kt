@@ -3,6 +3,7 @@ package com.notivault.di
 import android.content.Context
 import com.notivault.data.crypto.KeyManager
 import com.notivault.data.db.AppDatabase
+import com.notivault.data.media.MediaVault
 import com.notivault.data.prefs.SettingsStore
 import com.notivault.data.repo.BackupManager
 import com.notivault.data.repo.VaultRepository
@@ -29,6 +30,10 @@ object AppModule {
 
     @Provides @Singleton
     fun repository(@ApplicationContext ctx: Context, db: AppDatabase, keys: KeyManager) = VaultRepository(ctx, db, keys)
+
+    @Provides @Singleton
+    fun mediaVault(@ApplicationContext ctx: Context, db: AppDatabase, keys: KeyManager, settings: SettingsStore) =
+        MediaVault(ctx, db, keys, settings)
 
     @Provides @Singleton
     fun backup(@ApplicationContext ctx: Context, db: AppDatabase, keys: KeyManager) = BackupManager(ctx, db, keys)

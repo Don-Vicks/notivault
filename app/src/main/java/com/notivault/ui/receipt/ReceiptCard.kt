@@ -23,6 +23,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +63,7 @@ fun ReceiptCard(row: MessageRow, modifier: Modifier = Modifier) {
             Field("SENT", Format.precise(row.msgTimestamp), ink, muted)
             Field("CAPTURED", Format.precise(row.postedAt), ink, muted)
             if (row.deletedBySender && row.deletedDetectedAt != null) Field("DELETED", Format.precise(row.deletedDetectedAt), amber, muted)
+            if (!row.deletedBySender && row.possiblyUnsentAt != null) Field("WITHDRAWN", Format.precise(row.possiblyUnsentAt) + " (possibly unsent)", amber, muted)
             Text("Times in ${Format.zone(row.msgTimestamp)}", style = MonoStyle.copy(fontSize = 11.sp), color = muted,
                 modifier = Modifier.padding(top = 4.dp))
             Dashes(muted)
@@ -74,7 +76,7 @@ fun ReceiptCard(row: MessageRow, modifier: Modifier = Modifier) {
         }
         if (row.deletedBySender) {
             Box(
-                Modifier.align(Alignment.TopEnd).padding(top = 36.dp).rotate(-12f)
+                Modifier.align(Alignment.BottomEnd).padding(bottom = 4.dp).rotate(-12f)
                     .drawBehind {
                         drawRoundRect(amber, size = Size(size.width, size.height), cornerRadius = CornerRadius(6.dp.toPx()),
                             style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 4f))))
@@ -90,7 +92,9 @@ fun ReceiptCard(row: MessageRow, modifier: Modifier = Modifier) {
 @Composable
 private fun Field(label: String, value: String, ink: Color, muted: Color) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MonoStyle, color = muted, modifier = Modifier.width(92.dp))
+        // Width in sp so the label column grows with the user's font size instead of wrapping.
+        val labelWidth = with(LocalDensity.current) { 108.sp.toDp() }
+        Text(label, style = MonoStyle, color = muted, maxLines = 1, softWrap = false, modifier = Modifier.width(labelWidth))
         Text(value, style = MonoStyle, color = ink, modifier = Modifier.weight(1f))
     }
 }
