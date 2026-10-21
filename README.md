@@ -63,3 +63,6 @@ and media is a preview only. Android only; iOS does not allow reading other apps
 adb shell cmd notification allow_listener com.notivault/com.notivault.capture.NotiListenerService
 adb shell "cmd notification post -S messaging --conversation 'Squad' --message 'Ada:hi' sq x"
 ```
+
+## License
+Code is MIT-licensed (see `LICENSE`). Bundled Inter and JetBrains Mono fonts are under the SIL Open Font License (see `licenses/`).
