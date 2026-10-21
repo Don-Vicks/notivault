@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Vault shield -->
+    <path android:fillColor="#7C8CFF"
+        android:pathData="M54,26 L76,34 L76,52 C76,66 66,77 54,82 C42,77 32,66 32,52 L32,34 Z" />
+    <!-- Bell -->
+    <path android:fillColor="#0B0D12"
+        android:pathData="M54,40 C47.5,40 44,45 44,51 L44,58 L41,62 L67,62 L64,58 L64,51 C64,45 60.5,40 54,40 Z" />
+    <path android:fillColor="#F5B544"
+        android:pathData="M50,65 L58,65 C58,67.2 56.2,69 54,69 C51.8,69 50,67.2 50,65 Z" />
+</vector>

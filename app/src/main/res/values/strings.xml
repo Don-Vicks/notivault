@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">NotiVault</string>
+    <string name="channel_recovered">Recovered messages</string>
+    <string name="channel_health">Capture status</string>
+</resources>
